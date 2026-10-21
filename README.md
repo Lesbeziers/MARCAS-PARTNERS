@@ -100,3 +100,29 @@ assets/
 ```
 
 Sin build, sin dependencias que instalar, sin llamadas a internet.
+
+---
+
+## Aviso sobre los materiales incluidos
+
+Esta es una **herramienta interna de Movistar Plus+**. El repositorio está
+temporalmente en abierto como única forma de compartir la URL de pruebas
+mientras se habilita el GitHub Enterprise corporativo; pasará a privado en
+cuanto esté disponible.
+
+El código es libre de reutilizar. **Los materiales gráficos no**:
+
+- La familia tipográfica **Apercu Movistar** es una licencia comercial de
+  Telefónica. Está aquí para que la herramienta funcione, no para su
+  descarga ni uso fuera de este proyecto.
+- Los logotipos de **Apple TV, Apple TV+, HBO Max y SkyShowtime** son
+  marcas registradas de sus respectivos titulares, incluidas únicamente
+  para el cometido de esta herramienta.
+- La **cabecera y la identidad de Movistar Plus+** son propiedad de
+  Telefónica.
+
+Nada de lo anterior se publica bajo licencia abierta ni se cede para uso
+de terceros.
+
+La única dependencia externa es **JSZip 3.10.1** (licencia MIT), incluida
+en `assets/js/`.
