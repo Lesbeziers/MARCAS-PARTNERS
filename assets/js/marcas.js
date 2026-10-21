@@ -1,5 +1,5 @@
 /* =============================================================
-   MARCAS DINÁMICAS — Catálogo de partners
+   MARCAS PARTNERS — Catálogo de partners
    =============================================================
    Para añadir un partner nuevo:
      1. Deja su SVG en assets/img (como archivo de referencia).

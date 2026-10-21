@@ -1,5 +1,5 @@
 /* =============================================================
-   MARCAS DINÁMICAS 1.0
+   MARCAS PARTNERS 1.0
    Aplicación de marcas de partner sobre carátulas de Movistar Plus+.
    Todo sucede en el navegador: no hay servidor ni conexión externa.
    ============================================================= */
@@ -71,7 +71,7 @@ const nodo = {
   dropzone: $('dropzone'),
   input: $('input-archivos'),
   trabajo: $('trabajo'),
-  portada: $('btn-portada'),
+  inicio: $('btn-inicio'),
   reiniciar: $('btn-reiniciar'),
   exportar: $('btn-exportar'),
   anterior: $('btn-anterior'),
@@ -177,7 +177,7 @@ async function cargarArchivos(archivos) {
 
 function rellenarSelectores() {
   nodo.selectorModo.innerHTML =
-    `<option value="${MODO_VARIAS}">VARIAS MARCAS DINÁMICAS</option>` +
+    `<option value="${MODO_VARIAS}">VARIOS PARTNERS</option>` +
     MARCAS_PREPARADAS.map((m) => `<option value="${m.id}">${m.etiqueta}</option>`).join('');
 
   nodo.selectorMarca.innerHTML =
@@ -356,9 +356,9 @@ document.addEventListener('keydown', (e) => {
 });
 
 const AVISO_ASIGNACIONES =
-  'Vas a perder todas las asignaciones de marcas dinámicas hechas hasta ahora. ¿Continuar?';
-const AVISO_PORTADA =
-  'Vas a volver a la portada y se perderán las imágenes cargadas y sus marcas. ¿Continuar?';
+  'Vas a perder todas las asignaciones de marcas hechas hasta ahora. ¿Continuar?';
+const AVISO_INICIO =
+  'Vas a volver al inicio y se perderán las imágenes cargadas y sus marcas. ¿Continuar?';
 
 /* ============================== EXPORTACIÓN ============================== */
 
@@ -460,7 +460,7 @@ function nombreZip() {
   const etiqueta =
     usadas.size === 1 ? buscarMarca([...usadas][0]).slug : 'Varias';
 
-  return `marcas_dinamicas_${etiqueta}_${sello}.zip`;
+  return `marcas_partners_${etiqueta}_${sello}.zip`;
 }
 
 function descargar(blob, nombre) {
@@ -576,8 +576,8 @@ nodo.dropzone.addEventListener('drop', (e) => cargarArchivos(e.dataTransfer.file
 
 /* -- barra -- */
 
-nodo.portada.addEventListener('click', async () => {
-  if (estado.caratulas.length && !(await confirmar(AVISO_PORTADA))) return;
+nodo.inicio.addEventListener('click', async () => {
+  if (estado.caratulas.length && !(await confirmar(AVISO_INICIO))) return;
 
   estado.caratulas.forEach((c) =>
     ['V', 'H'].forEach((r) => c[r] && URL.revokeObjectURL(c[r].url))

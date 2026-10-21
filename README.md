@@ -1,4 +1,4 @@
-# Marcas Dinámicas
+# Marcas Partners
 
 Herramienta interna para estampar logos de partner sobre carátulas de Movistar Plus+.
 Arrastras un lote de imágenes, asignas marca y descargas un ZIP listo para entregar.
@@ -10,9 +10,9 @@ ni conexión a internet.
 
 ## Cómo se usa
 
-1. **Portada.** Arrastra las carátulas o haz clic para seleccionarlas.
+1. **Inicio.** Arrastra las carátulas o haz clic para seleccionarlas.
 2. **Selector de marcas** (columna izquierda):
-   - `VARIAS MARCAS DINÁMICAS` — asignas una marca distinta a cada carátula.
+   - `VARIOS PARTNERS` — asignas una marca distinta a cada carátula.
    - Un partner concreto — se aplica a todo el lote de una vez.
 3. Navega entre carátulas con los botones `ANTERIOR` / `SIGUIENTE` o con las
    **flechas del teclado**.
