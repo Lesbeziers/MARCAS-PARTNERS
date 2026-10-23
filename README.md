@@ -21,15 +21,35 @@ ni conexión a internet.
 
 ## Cómo agrupa las imágenes
 
-Dos archivos que solo se diferencien en el sufijo **`_H`** / **`_V`** son la misma
-carátula y ocupan una sola fila:
+El material llega de agencia sin convención fiable, así que **no se interpreta el
+nombre**: solo se mide cuánto se parecen dos nombres entre sí.
+
+Dos archivos son pareja si comparten casi todo el nombre, se diferencian solo al
+final, y **uno es 16:9 y el otro 2:3**.
 
 ```
-LA_VERDAD_SOBRE_EL_SUDOR_H.jpg  ┐
-LA_VERDAD_SOBRE_EL_SUDOR_V.jpg  ┘  → una carátula, dos formatos
+Anatomia_De_Un_Instante_001.jpg  ┐
+Anatomia_De_Un_Instante_002.jpg  ┘  → una carátula, dos formatos
 ```
+
+**El formato nunca se deduce del nombre, lo deciden los píxeles.** En un mismo pack
+pueden convivir numeraciones contradictorias — `..._1`/`_2` donde 1 es el vertical,
+y `..._20`/`_21` donde 0 es el horizontal — y fiarse del número pondría el logo en
+el formato equivocado.
 
 Si solo hay uno de los dos formatos, el que falta aparece como un hueco gris.
+
+### Emparejado a mano
+
+La heurística no acierta siempre, así que hay salida para los dos errores posibles:
+
+- **Arrastra una carátula suelta sobre otra** para unirlas. Solo se iluminan los
+  destinos válidos: si arrastras un horizontal, se encienden los verticales
+  sueltos. Tú dices qué va con qué; cuál es cuál lo siguen decidiendo los píxeles.
+- **La × de una fila emparejada la separa** en dos. Sirve tanto para deshacer un
+  emparejado manual como para corregir un falso positivo del automático.
+
+La marca ya asignada se conserva en ambas operaciones.
 
 ## Colocación de la marca
 
@@ -55,7 +75,7 @@ mayores o menores, escala proporcional.
 | Parámetro   | Valor                                              |
 |-------------|----------------------------------------------------|
 | Formato     | JPG siempre (un PNG de entrada se convierte)       |
-| Nombre      | El del archivo original, con su `_H` / `_V`        |
+| Nombre      | El del archivo original, intacto                   |
 | Dimensiones | Las del original, exactas                          |
 | Peso máximo | 1,5 MB por imagen                                  |
 | Calidad     | La más alta que quepa bajo ese límite              |

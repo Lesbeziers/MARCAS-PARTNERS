@@ -280,6 +280,70 @@ body {
   border-color: var(--naranja);
 }
 
+/* -- emparejado a mano --
+   Al arrastrar una carátula suelta solo se encienden los destinos que
+   aportan el formato que le falta; el resto se apaga. El error no llega
+   a ofrecerse. */
+
+.fila {
+  position: relative;
+}
+
+.item.suelta { cursor: grab; }
+.item.suelta:active { cursor: grabbing; }
+
+.item.fantasma { opacity: .35; }
+
+.lista.emparejando .item { opacity: .3; }
+
+.lista.emparejando .item.destino {
+  opacity: 1;
+  border-color: #4c4c4c;
+  border-style: dashed;
+}
+
+.lista.emparejando .item.encima {
+  opacity: 1;
+  border-color: var(--naranja);
+  border-style: solid;
+  background: rgba(233, 161, 59, .1);
+}
+
+/* La × de separar: discreta, solo al pasar por encima de la fila. */
+.separar {
+  position: absolute;
+  top: 50%;
+  right: -2px;
+  transform: translateY(-50%);
+  width: 17px;
+  height: 17px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1;
+  color: var(--texto-tenue);
+  background: #1e1e1e;
+  border: 1px solid #3a3a3a;
+  border-radius: 50%;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity .12s ease, color .12s ease, border-color .12s ease;
+}
+
+.fila:hover .separar { opacity: 1; }
+
+.separar:hover {
+  color: var(--naranja);
+  border-color: var(--naranja);
+}
+
+.separar:focus-visible {
+  opacity: 1;
+  outline: 1px solid var(--naranja);
+}
+
 .item-thumb {
   flex: 0 0 auto;
   width: 58px;

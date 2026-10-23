@@ -51,6 +51,7 @@ const estado = {
   caratulas: [],
   indice: 0,
   modo: MODO_VARIAS,
+  arrastrando: null,   // índice de la carátula que se está arrastrando
 };
 
 /* La marca que realmente se aplica a una carátula: en modo partner manda
@@ -94,16 +95,92 @@ const nodo = {
 
 /* ============================ CARGA DE IMÁGENES =========================== */
 
-/* Separa el nombre en clave de carátula y ranura (_H / _V). Dos archivos
-   que solo se diferencien en ese sufijo son la misma carátula. */
-function analizarNombre(nombre) {
-  const punto = nombre.lastIndexOf('.');
-  const base = punto > 0 ? nombre.slice(0, punto) : nombre;
-  const coincidencia = /^(.*)_([HV])$/i.exec(base);
+/* ---------------------------- Emparejado ---------------------------------
+   El material llega de agencia sin ninguna convención fiable. En un mismo
+   pack conviven numeraciones contradictorias: ..._1/_2 donde 1 es vertical,
+   y ..._20/_21 donde 0 es horizontal. Deducir el formato del nombre pone
+   el logo en el sitio equivocado.
 
-  return coincidencia
-    ? { clave: coincidencia[1], ranura: coincidencia[2].toUpperCase() }
-    : { clave: base, ranura: null };
+   Por eso no se interpreta el nombre, solo se mide cuánto se parecen dos
+   nombres entre sí. El formato lo deciden siempre los píxeles.
+   -------------------------------------------------------------------------- */
+
+const UMBRAL_PAREJA = 0.55;
+
+const raizNombre = (nombre) => nombre.replace(/\.[^.]+$/, '');
+
+function largoPrefijoComun(a, b) {
+  const A = a.toLowerCase();
+  const B = b.toLowerCase();
+  let i = 0;
+  while (i < Math.min(A.length, B.length) && A[i] === B[i]) i++;
+  return i;
+}
+
+/* 1 = nombres idénticos, 0 = no comparten ni la primera letra. */
+function parecido(nombreA, nombreB) {
+  const A = raizNombre(nombreA);
+  const B = raizNombre(nombreB);
+  return largoPrefijoComun(A, B) / Math.max(A.length, B.length);
+}
+
+/* Lo que se muestra en el lateral: la parte que ambos comparten, sin la
+   cola variable. De "..._001" y "..._002" queda "...". */
+function nombreDePareja(nombreA, nombreB) {
+  const A = raizNombre(nombreA);
+  const B = raizNombre(nombreB);
+  const comun = A.slice(0, largoPrefijoComun(A, B)).replace(/[\s._-]*\d*$/, '').trim();
+  return comun || raizNombre(nombreA);
+}
+
+function crearCaratula(v, h) {
+  const presentes = [v, h].filter(Boolean);
+  return {
+    nombre: v && h ? nombreDePareja(v.nombre, h.nombre) : raizNombre(presentes[0].nombre),
+    V: v || null,
+    H: h || null,
+    marca: null,
+    orden: Math.min(...presentes.map((p) => p.orden)),
+  };
+}
+
+/* Empareja cada horizontal con el vertical al que más se parezca, de mayor
+   a menor confianza. Ante un empate exacto no hay forma de saber cuál es la
+   buena: se dejan sueltas y que lo resuelva quien mira. */
+function emparejarAutomatico(piezas) {
+  const candidatos = [];
+  for (const h of piezas.filter((p) => p.ranura === 'H')) {
+    for (const v of piezas.filter((p) => p.ranura === 'V')) {
+      const s = parecido(h.nombre, v.nombre);
+      if (s >= UMBRAL_PAREJA) candidatos.push({ s, h, v });
+    }
+  }
+  candidatos.sort((a, b) => b.s - a.s);
+
+  const usados = new Set();
+  const caratulas = [];
+
+  for (const c of candidatos) {
+    if (usados.has(c.h) || usados.has(c.v)) continue;
+
+    const empatada = candidatos.some(
+      (o) => o !== c && Math.abs(o.s - c.s) < 1e-9 &&
+             (o.h === c.h || o.v === c.v) &&
+             !usados.has(o.h) && !usados.has(o.v)
+    );
+    if (empatada) continue;
+
+    usados.add(c.h);
+    usados.add(c.v);
+    caratulas.push(crearCaratula(c.v, c.h));
+  }
+
+  for (const p of piezas) {
+    if (!usados.has(p)) caratulas.push(crearCaratula(p.ranura === 'V' ? p : null,
+                                                    p.ranura === 'H' ? p : null));
+  }
+
+  return caratulas.sort((a, b) => a.orden - b.orden);
 }
 
 function leerMedidas(url) {
@@ -124,7 +201,7 @@ async function cargarArchivos(archivos) {
 
   if (!validos.length) return;
 
-  const porClave = new Map();
+  const piezas = [];
 
   for (const archivo of validos) {
     const url = URL.createObjectURL(archivo);
@@ -137,34 +214,20 @@ async function cargarArchivos(archivos) {
       continue;
     }
 
-    const { clave, ranura } = analizarNombre(archivo.name);
-    /* Sin sufijo, la orientación decide el formato. */
-    const ranuraFinal = ranura || (medidas.ancho > medidas.alto ? 'H' : 'V');
-
-    const pieza = {
+    piezas.push({
       archivo,
       nombre: archivo.name,
       url,
       ancho: medidas.ancho,
       alto: medidas.alto,
+      /* El formato nunca se deduce del nombre: lo dicen los píxeles. */
+      ranura: medidas.ancho > medidas.alto ? 'H' : 'V',
       esPng: /^image\/png$/i.test(archivo.type) || /\.png$/i.test(archivo.name),
-    };
-
-    /* Si esa ranura ya está ocupada, el archivo no es pareja de nadie:
-       se le da carátula propia en lugar de machacar la anterior. */
-    let clavePropia = clave;
-    let intento = 2;
-    while (porClave.has(clavePropia) && porClave.get(clavePropia)[ranuraFinal]) {
-      clavePropia = `${clave} (${intento++})`;
-    }
-
-    if (!porClave.has(clavePropia)) {
-      porClave.set(clavePropia, { clave: clavePropia, nombre: clavePropia, V: null, H: null, marca: null });
-    }
-    porClave.get(clavePropia)[ranuraFinal] = pieza;
+      orden: piezas.length,
+    });
   }
 
-  estado.caratulas = [...porClave.values()];
+  estado.caratulas = emparejarAutomatico(piezas);
   estado.indice = 0;
   estado.modo = MODO_VARIAS;
 
@@ -185,6 +248,50 @@ function rellenarSelectores() {
     MARCAS_PREPARADAS.map((m) => `<option value="${m.id}">${m.etiqueta}</option>`).join('');
 }
 
+/* --------------------- Emparejado y separación a mano --------------------- */
+
+const estaSuelta = (c) => !(c.V && c.H);
+const ranuraLibre = (c) => (c.V ? 'H' : 'V');
+
+/* Solo tiene sentido soltar una suelta sobre otra suelta que aporte el
+   formato que le falta. Dos horizontales no son pareja de nada. */
+function sePuedenEmparejar(origen, destino) {
+  if (!origen || !destino || origen === destino) return false;
+  return estaSuelta(origen) && estaSuelta(destino) &&
+         ranuraLibre(origen) !== ranuraLibre(destino);
+}
+
+function emparejar(iOrigen, iDestino) {
+  const a = estado.caratulas[iOrigen];
+  const b = estado.caratulas[iDestino];
+  if (!sePuedenEmparejar(a, b)) return;
+
+  const nueva = crearCaratula(a.V || b.V, a.H || b.H);
+  /* Si alguna de las dos ya tenía marca, se conserva: no se tira trabajo. */
+  nueva.marca = b.marca || a.marca || null;
+
+  const posicion = Math.min(iOrigen, iDestino);
+  estado.caratulas = estado.caratulas.filter((_, k) => k !== iOrigen && k !== iDestino);
+  estado.caratulas.splice(posicion, 0, nueva);
+  estado.indice = posicion;
+  pintarTodo();
+}
+
+/* Deshace un emparejado, sea manual o automático: también sirve para
+   corregir un falso positivo de la heurística. */
+function separar(i) {
+  const c = estado.caratulas[i];
+  if (estaSuelta(c)) return;
+
+  const vertical = crearCaratula(c.V, null);
+  const horizontal = crearCaratula(null, c.H);
+  vertical.marca = horizontal.marca = c.marca;
+
+  estado.caratulas.splice(i, 1, vertical, horizontal);
+  estado.indice = i;
+  pintarTodo();
+}
+
 function pintarLateral() {
   nodo.selectorModo.value = estado.modo;
   nodo.lista.innerHTML = '';
@@ -198,6 +305,54 @@ function pintarLateral() {
       estado.indice = i;
       pintarTodo();
     });
+
+    /* -- arrastrar una suelta sobre otra para emparejarlas -- */
+    if (estaSuelta(caratula)) {
+      boton.draggable = true;
+      boton.classList.add('suelta');
+
+      boton.addEventListener('dragstart', (e) => {
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', String(i));
+        estado.arrastrando = i;
+
+        /* Se marcan los destinos válidos sobre el DOM ya pintado. Repintar
+           la lista aquí destruiría el elemento que se está arrastrando y
+           el navegador cancelaría el arrastre. */
+        nodo.lista.classList.add('emparejando');
+        nodo.lista.querySelectorAll('.item').forEach((otro, k) => {
+          if (sePuedenEmparejar(caratula, estado.caratulas[k])) otro.classList.add('destino');
+        });
+        requestAnimationFrame(() => boton.classList.add('fantasma'));
+      });
+
+      boton.addEventListener('dragend', () => {
+        estado.arrastrando = null;
+        nodo.lista.classList.remove('emparejando');
+        nodo.lista.querySelectorAll('.item').forEach((otro) =>
+          otro.classList.remove('destino', 'encima', 'fantasma')
+        );
+      });
+
+      boton.addEventListener('dragover', (e) => {
+        const origen = estado.caratulas[estado.arrastrando];
+        if (!sePuedenEmparejar(origen, caratula)) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        boton.classList.add('encima');
+      });
+
+      boton.addEventListener('dragleave', () => boton.classList.remove('encima'));
+
+      boton.addEventListener('drop', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const desde = Number(e.dataTransfer.getData('text/plain'));
+        nodo.lista.classList.remove('emparejando');
+        estado.arrastrando = null;
+        emparejar(desde, i);
+      });
+    }
 
     /* Thumbnail: si están los dos formatos, van juntos y con el peso
        a la izquierda. */
@@ -243,7 +398,26 @@ function pintarLateral() {
     badge.textContent = listo ? 'OK' : 'FALTA';
 
     boton.append(thumb, datos, badge);
+
+    /* La × de separar vive fuera del botón: dentro sería un botón dentro
+       de otro, que no es HTML válido y además dispararía la selección. */
+    li.className = 'fila';
     li.appendChild(boton);
+
+    if (!estaSuelta(caratula)) {
+      const separador = document.createElement('button');
+      separador.type = 'button';
+      separador.className = 'separar';
+      separador.textContent = '×';
+      separador.title = 'Separar los dos formatos';
+      separador.setAttribute('aria-label', `Separar ${caratula.nombre}`);
+      separador.addEventListener('click', (e) => {
+        e.stopPropagation();
+        separar(i);
+      });
+      li.appendChild(separador);
+    }
+
     nodo.lista.appendChild(li);
   });
 }
@@ -569,9 +743,13 @@ nodo.input.addEventListener('change', (e) => {
 
 nodo.dropzone.addEventListener('drop', (e) => cargarArchivos(e.dataTransfer.files));
 
-/* Evita que soltar un archivo fuera de la zona lo abra en el navegador. */
+/* Evita que soltar un archivo fuera de la zona lo abra en el navegador.
+   Solo se bloquea el arrastre que trae archivos del escritorio: el arrastre
+   interno entre carátulas tiene sus propios destinos y no debe pisarse. */
 ['dragover', 'drop'].forEach((evento) =>
-  document.addEventListener(evento, (e) => e.preventDefault())
+  document.addEventListener(evento, (e) => {
+    if (e.dataTransfer && [...e.dataTransfer.types].includes('Files')) e.preventDefault();
+  })
 );
 
 /* -- barra -- */
