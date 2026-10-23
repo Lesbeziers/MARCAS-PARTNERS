@@ -9,8 +9,21 @@
      por casualidad desde una búsqueda. Retirar cuando pase a privado. -->
 <meta name="robots" content="noindex, nofollow">
 <title>Marcas Partners · Movistar Plus+</title>
-<link rel="stylesheet" href="assets/css/fonts.css">
-<link rel="stylesheet" href="assets/css/style.css">
+
+<!-- ======================= IMPORTANTE AL ACTUALIZAR =======================
+     El servidor sirve el CSS y el JS con 14 días de caché y sin revalidar,
+     así que un navegador que ya haya entrado seguirá usando la versión
+     antigua durante dos semanas por mucho que se suba la nueva.
+
+     El HTML, en cambio, revalida cada 2 horas. Por eso las rutas llevan
+     ?v=FECHA: al cambiar ese número cambia la dirección, el navegador no
+     la tiene guardada y descarga el archivo nuevo.
+
+     >>> SUBIR UNA VERSIÓN NUEVA = CAMBIAR ESTA FECHA EN LAS 4 RUTAS <<<
+     Si no se cambia, nadie verá los cambios hasta pasados 14 días.
+     ======================================================================= -->
+<link rel="stylesheet" href="assets/css/fonts.css?v=20261023">
+<link rel="stylesheet" href="assets/css/style.css?v=20261023">
 </head>
 <body>
 
@@ -93,8 +106,8 @@
   </div>
 </div>
 
-<script src="assets/js/jszip.min.js"></script>
-<script src="assets/js/marcas.js"></script>
-<script src="assets/js/app.js"></script>
+<script src="assets/js/jszip.min.js?v=20261023"></script>
+<script src="assets/js/marcas.js?v=20261023"></script>
+<script src="assets/js/app.js?v=20261023"></script>
 </body>
 </html>

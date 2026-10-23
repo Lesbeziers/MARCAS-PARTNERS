@@ -123,6 +123,32 @@ Sin build, sin dependencias que instalar, sin llamadas a internet.
 
 ---
 
+## Despliegue en el servidor corporativo
+
+Dos adaptaciones que **solo aplican a comunicacion.movistar**, no a este repositorio:
+
+1. **El archivo se renombra a `MarcasPartners.html`**, porque ese servidor no toma
+   `index.html` como página por defecto. Aquí se mantiene `index.html`.
+
+2. **Las rutas llevan `?v=FECHA`.** El servidor entrega el CSS y el JS con catorce
+   días de caché y sin revalidar, así que un navegador que ya haya entrado seguiría
+   usando la versión antigua dos semanas después de subir la nueva. El HTML sí
+   revalida cada dos horas, de modo que cambiar ese número basta para que todo el
+   mundo reciba los archivos nuevos.
+
+   > **Al subir una versión: cambiar la fecha en las cuatro rutas del HTML.**
+   > Si se olvida, nadie verá los cambios hasta pasados catorce días.
+
+### Content-Security-Policy
+
+Ese servidor aplica `img-src 'self' data:` — sin `blob:`. Por eso la app no usa
+`blob:` en ningún punto: los archivos se decodifican directamente con
+`createImageBitmap` y las previsualizaciones se guardan como `data:` reducidas.
+El ZIP se genera siempre desde el original a resolución completa, nunca desde la
+previsualización.
+
+---
+
 ## Aviso sobre los materiales incluidos
 
 Esta es una **herramienta interna de Movistar Plus+**. El repositorio está

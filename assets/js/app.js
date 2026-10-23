@@ -183,13 +183,44 @@ function emparejarAutomatico(piezas) {
   return caratulas.sort((a, b) => a.orden - b.orden);
 }
 
-function leerMedidas(url) {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => resolve({ ancho: img.naturalWidth, alto: img.naturalHeight });
-    img.onerror = () => reject(new Error('No se pudo leer la imagen'));
-    img.src = url;
-  });
+/* Lado mayor de la previsualización. Muy por encima de lo que ocupa el
+   lienzo en pantalla, incluso en monitores de densidad doble. */
+const LADO_PREVIA = 1600;
+
+/* Prepara una imagen para trabajar con ella.
+
+   Dos decisiones que vienen de la Content-Security-Policy del servidor
+   corporativo, que permite img-src 'self' y data: pero NO blob::
+
+   · Las medidas se leen con createImageBitmap sobre el propio archivo,
+     sin pasar por ninguna URL. Antes se cargaba un blob: en un <img>, y
+     bajo esa política fallaba la carga, se descartaba el archivo y el
+     lote entero se quedaba vacío.
+   · La previsualización se guarda como data: reducida, no como blob:.
+     De paso pesa una fracción del original. */
+async function prepararPieza(archivo, orden) {
+  const bitmap = await createImageBitmap(archivo);
+  const ancho = bitmap.width;
+  const alto = bitmap.height;
+
+  const escala = Math.min(1, LADO_PREVIA / Math.max(ancho, alto));
+  const lienzo = document.createElement('canvas');
+  lienzo.width = Math.round(ancho * escala);
+  lienzo.height = Math.round(alto * escala);
+  lienzo.getContext('2d').drawImage(bitmap, 0, 0, lienzo.width, lienzo.height);
+  bitmap.close();
+
+  return {
+    archivo,
+    nombre: archivo.name,
+    url: lienzo.toDataURL('image/jpeg', 0.82),
+    ancho,
+    alto,
+    /* El formato nunca se deduce del nombre: lo dicen los píxeles. */
+    ranura: ancho > alto ? 'H' : 'V',
+    esPng: /^image\/png$/i.test(archivo.type) || /\.png$/i.test(archivo.name),
+    orden,
+  };
 }
 
 async function cargarArchivos(archivos) {
@@ -202,30 +233,41 @@ async function cargarArchivos(archivos) {
   if (!validos.length) return;
 
   const piezas = [];
+  const descartados = [];
 
-  for (const archivo of validos) {
-    const url = URL.createObjectURL(archivo);
+  /* Preparar las previsualizaciones lleva su tiempo en lotes grandes,
+     así que se avisa en vez de dejar la pantalla congelada. */
+  nodo.progreso.hidden = false;
+  nodo.progresoRelleno.style.width = '0%';
 
-    let medidas;
-    try {
-      medidas = await leerMedidas(url);
-    } catch {
-      URL.revokeObjectURL(url);
-      continue;
+  try {
+    for (const archivo of validos) {
+      nodo.progresoTexto.textContent =
+        `Leyendo ${piezas.length + descartados.length + 1} de ${validos.length} — ${archivo.name}`;
+      await new Promise((r) => requestAnimationFrame(r));
+
+      try {
+        piezas.push(await prepararPieza(archivo, piezas.length));
+      } catch (error) {
+        console.error('No se pudo leer', archivo.name, error);
+        descartados.push(archivo.name);
+      }
+
+      nodo.progresoRelleno.style.width =
+        ((piezas.length + descartados.length) / validos.length) * 100 + '%';
     }
-
-    piezas.push({
-      archivo,
-      nombre: archivo.name,
-      url,
-      ancho: medidas.ancho,
-      alto: medidas.alto,
-      /* El formato nunca se deduce del nombre: lo dicen los píxeles. */
-      ranura: medidas.ancho > medidas.alto ? 'H' : 'V',
-      esPng: /^image\/png$/i.test(archivo.type) || /\.png$/i.test(archivo.name),
-      orden: piezas.length,
-    });
+  } finally {
+    nodo.progreso.hidden = true;
   }
+
+  if (descartados.length) {
+    await avisar(
+      'No se han podido leer estos archivos y quedan fuera del lote:\n\n' +
+      descartados.join('\n')
+    );
+  }
+
+  if (!piezas.length) return;
 
   estado.caratulas = emparejarAutomatico(piezas);
   estado.indice = 0;
@@ -536,15 +578,6 @@ const AVISO_INICIO =
 
 /* ============================== EXPORTACIÓN ============================== */
 
-function leerComoDataURL(archivo) {
-  return new Promise((resolve, reject) => {
-    const lector = new FileReader();
-    lector.onload = () => resolve(lector.result);
-    lector.onerror = () => reject(lector.error);
-    lector.readAsDataURL(archivo);
-  });
-}
-
 function cargarImagen(src) {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -597,16 +630,19 @@ async function comprimir(canvas, limite) {
 }
 
 async function componer(pieza, marca, ranura) {
-  /* Data URL en vez de blob: garantiza que el canvas no quede
-     contaminado al abrir la app desde file://. */
-  const arte = await cargarImagen(await leerComoDataURL(pieza.archivo));
+  /* Se decodifica el archivo directamente, sin URL intermedia: así no
+     interviene la Content-Security-Policy del servidor ni se contamina
+     el canvas al abrir la app desde file://. Y se exporta siempre desde
+     el original a resolución completa, nunca desde la previsualización. */
+  const arte = await createImageBitmap(pieza.archivo);
 
   const canvas = document.createElement('canvas');
-  canvas.width = arte.naturalWidth;
-  canvas.height = arte.naturalHeight;
+  canvas.width = arte.width;
+  canvas.height = arte.height;
 
   const ctx = canvas.getContext('2d');
   ctx.drawImage(arte, 0, 0);
+  arte.close();
 
   const escala = canvas.width / REFERENCIA[ranura].ancho;
   const anchoLogo = marca.anchoVb * escala;
@@ -757,9 +793,8 @@ nodo.dropzone.addEventListener('drop', (e) => cargarArchivos(e.dataTransfer.file
 nodo.inicio.addEventListener('click', async () => {
   if (estado.caratulas.length && !(await confirmar(AVISO_INICIO))) return;
 
-  estado.caratulas.forEach((c) =>
-    ['V', 'H'].forEach((r) => c[r] && URL.revokeObjectURL(c[r].url))
-  );
+  /* Las previsualizaciones son data:, no blob:, así que no hay nada que
+     revocar: se liberan solas al soltar la referencia. */
   estado.caratulas = [];
   estado.indice = 0;
   estado.modo = MODO_VARIAS;
