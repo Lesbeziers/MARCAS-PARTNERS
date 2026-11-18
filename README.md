@@ -107,6 +107,8 @@ funcionar.
 
 ```
 index.html
+empaquetar.py          Genera el ZIP para el servidor
+CLAUDE.md              Guía de trabajo: decisiones, verificación, despliegue
 assets/
 ├── css/
 │   ├── fonts.css      Apercu Movistar
@@ -125,19 +127,28 @@ Sin build, sin dependencias que instalar, sin llamadas a internet.
 
 ## Despliegue en el servidor corporativo
 
-Dos adaptaciones que **solo aplican a comunicacion.movistar**, no a este repositorio:
+```bash
+python3 empaquetar.py
+```
 
-1. **El archivo se renombra a `MarcasPartners.html`**, porque ese servidor no toma
-   `index.html` como página por defecto. Aquí se mantiene `index.html`.
+Deja `../MarcasPartners_servidor.zip` listo para el FTP. El script aplica tres
+adaptaciones que **solo necesita comunicacion.movistar**, no este repositorio:
 
-2. **Las rutas llevan `?v=FECHA`.** El servidor entrega el CSS y el JS con catorce
-   días de caché y sin revalidar, así que un navegador que ya haya entrado seguiría
-   usando la versión antigua dos semanas después de subir la nueva. El HTML sí
-   revalida cada dos horas, de modo que cambiar ese número basta para que todo el
-   mundo reciba los archivos nuevos.
+1. **Renombra `index.html` a `MarcasPartners.html`**, porque ese servidor no toma
+   el index como página por defecto. Aquí se mantiene `index.html`.
 
-   > **Al subir una versión: cambiar la fecha en las cuatro rutas del HTML.**
-   > Si se olvida, nadie verá los cambios hasta pasados catorce días.
+2. **Pone la fecha del día en las rutas `?v=`.** El servidor entrega el CSS y el JS
+   con catorce días de caché y sin revalidar, así que un navegador que ya haya
+   entrado seguiría usando la versión antigua dos semanas después de subir la nueva.
+   El HTML sí revalida cada dos horas, de modo que cambiar ese número basta para que
+   todo el mundo reciba los archivos nuevos. Lo hace el script para que no se pueda
+   olvidar.
+
+3. **Deja fuera los `.eot` y `.ttf`**, que `fonts.css` no referencia.
+
+El versionado funciona **retroactivamente**: basta con que un despliegue incluya el
+`?v=` nuevo para que todos reciban los archivos frescos en un par de horas, aunque
+lleven días con la versión anterior.
 
 ### Content-Security-Policy
 

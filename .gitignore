@@ -4,3 +4,6 @@
 
 # Configuración local de previsualización durante el desarrollo
 .claude/
+
+# Documento de traspaso entre cuentas, no forma parte del proyecto
+TRASPASO.md
